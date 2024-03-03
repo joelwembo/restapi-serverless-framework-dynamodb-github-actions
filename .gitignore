@@ -1,0 +1,6 @@
+.serverless
+node_modules
+.build
+.vscode
+.docs.md
+./docs.md

@@ -1,0 +1,39 @@
+{
+  "name": "products-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "serverless deploy",
+    "destroy": "serverless remove"
+  },
+  "author": "joel otepa wembo",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.102",
+    "@types/node": "^18.7.13",
+    "@types/uuid": "^9.0.2",
+    "prettier": "^2.7.1",
+    "serverless": "^3.22.0",
+    "serverless-add-api-key": "^4.2.1",
+    "serverless-iam-roles-per-function": "^3.2.0",
+    "serverless-offline": "^13.3.2",
+    "serverless-plugin-typescript": "^2.1.5",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.18.0",
+    "@aws-sdk/util-dynamodb": "^3.18.0",
+    "aws-lambda": "^1.0.7",
+    "aws-sdk": "^2.1201.0",
+    "joi": "^17.9.1",
+    "jsonwebtoken": "^9.0.0",
+    "jwks-rsa": "^3.0.1",
+    "middy": "^0.36.0",
+    "serverless-dynamodb": "^0.2.50",
+    "serverless-dynamodb-local": "^0.2.40",
+    "uuid": "^9.0.1",
+    "yup": "^1.2.0"
+  }
+}

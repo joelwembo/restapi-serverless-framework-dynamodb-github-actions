@@ -1,0 +1,397 @@
+service: restapi-serverless-framework-dynamodb
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-southeast-1
+  httpApi:
+    cors: true
+  profile: 'default'
+  stage: dev
+
+custom:
+  postsTableName: posts-table-${self:provider.stage}
+  apiKeys:
+    - name: name1
+      deleteAtRemoval: false
+    - name: name2
+      deleteAtRemoval: false
+    - name: user1
+      deleteAtRemoval: false
+      # value: ""
+    - name: user2
+      deleteAtRemoval: false
+      # value: ""
+  
+  iamRoleStatements:
+  - Effect: Allow
+    Action:
+    - dynamodb:Query
+    - dynamodb:PutItem
+    - dynamodb:GetItem
+    - dynamodb:DeleteItem
+    - dynamodb:Scan
+    - dynamodb:UpdateItem
+    - dynamodb:DescribeTable
+    Resource:
+      Fn::GetAtt:
+      - NoteTable
+      - Arn
+      - ProductsTable
+
+  - Effect: Allow
+    Action:
+    - cognito-idp:AdminConfirmSignUp
+    Resource:
+    - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+  environment:
+    DYNAMODB_TABLE_NAME: ${self:custom.postsTableName}
+    COGNITO_CLIENT_ID:
+      Ref: CognitoUserPoolClient
+    COGNITO_USER_POOL_ID:
+      Ref: CognitoUserPool
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-iam-roles-per-function
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-add-api-key
+
+
+#resources
+resources:
+  Resources:
+    PostsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.postsTableName}
+        AttributeDefinitions:
+          - AttributeName: postId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: postId
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ProductsTable
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        AttributeDefinitions:
+          - AttributeName: productID
+            AttributeType: S
+        KeySchema:
+          - AttributeName: productID
+            KeyType: HASH
+    NoteTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: NoteTable
+        KeySchema:
+        - AttributeName: userEmail
+          KeyType: HASH
+        - AttributeName: noteDate
+          KeyType: RANGE
+        AttributeDefinitions:
+        - AttributeName: userEmail
+          AttributeType: N
+        - AttributeName: noteDate
+          AttributeType: N
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: noteAppUserPool
+        Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: noteAppUserPoolClient
+        GenerateSecret: false
+        UserPoolId:
+          Ref: CognitoUserPool
+        ExplicitAuthFlows:
+        - USER_PASSWORD_AUTH
+
+functions:
+  addNote:
+      handler: services/notes/functions/addNote.handler
+      events:
+      - http:
+          method: post
+          path: /note
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  deleteNote:
+      handler: services/notes/functions/deleteNote.handler
+      events:
+      - http:
+          path: /note/{noteDate}
+          method: delete
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  getAllNotes:
+      handler: services/notes/functions/getAllNotes.handler
+      events:
+      - http:
+          path: /note
+          method: get
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  registerUser:
+      handler: services/notes/functions/register.handler
+      events:
+      - http:
+          method: post
+          path: /register
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  loginUser:
+      handler: services/notes/functions/login.handler
+      events:
+      - http:
+          method: post
+          path: /login
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+
+  hello:
+    handler: services/index.handler
+    events:
+      - http:
+          path: /hello
+          method: post
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  getPost:
+    handler: services/posts/functions/api.getPost
+    name: get-post
+    memorySize: 128 # mb
+    timeout: 5 # seconds
+    events:
+      - http:
+          path: post/{postId}
+          method: GET
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:GetItem"
+        Resource: !GetAtt PostsTable.Arn
+  createPost:
+    handler: services/posts/functions/api.createPost
+    name: create-post
+    memorySize: 128 # mb
+    timeout: 5 # seconds
+    events:
+      - http:
+          path: post
+          method: POST
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:PutItem"
+        Resource: !GetAtt PostsTable.Arn
+  updatePost:
+    handler: services/posts/functions/api.updatePost
+    name: update-post
+    memorySize: 128 # mb
+    timeout: 5 # seconds
+    events:
+      - http:
+          path: post/{postId}
+          method: PUT
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:UpdateItem"
+        Resource: !GetAtt PostsTable.Arn
+  deletePost:
+    handler: services/posts/functions/api.deletePost
+    name: delete-post
+    memorySize: 128 # mb
+    timeout: 5 # seconds
+    events:
+      - http:
+          path: post/{postId}
+          method: DELETE
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:DeleteItem"
+        Resource: !GetAtt PostsTable.Arn
+  getAllPosts:
+    handler: services/posts/functions/api.getAllPosts
+    name: get-all-posts
+    memorySize: 128 
+    # timeout: 5
+    events:
+      - http:
+          path: posts
+          method: GET
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+    iamRoleStatements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:Scan"
+        Resource: !GetAtt PostsTable.Arn
+
+  createProduct:
+    handler: services/products/functions/handlers.createProduct
+    events:
+      - http:
+          path: /product
+          method: post
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  getProduct:
+    handler: services/products/functions/handlers.getProduct
+    events:
+      - http:
+          path: /product/{id}
+          method: get
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  updateProduct:
+    handler: services/products/functions/handlers.updateProduct
+    events:
+      - http:
+          path: /product/{id}
+          method: put
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  deleteProduct:
+    handler: services/products/functions/handlers.deleteProduct
+    events:
+      - http:
+          path: /product/{id}
+          method: delete
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+  listProduct:
+    handler: services/products/functions/handlers.listProduct
+    events:
+      - http:
+          path: /products
+          method: get
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false
+
+  TestAPIProject:
+    handler: services/products/functions/handlers.lambdaHandler
+    events:
+      - http:
+          path: /load-data/test
+          method: get
+          private: true
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Api-Key
+            allowCredentials: false        
+    
