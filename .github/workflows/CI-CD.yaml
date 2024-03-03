@@ -74,16 +74,13 @@ jobs:
     - name: Install serverless Globally
       run: npm install -g serverless     
    
-    # - name: Check AWS Credentials list
-    #   run: aws configure list     
+    - name: Check AWS Credentials list
+      run: aws configure list     
     - name: Serverless AWS authentication
       run: serverless config credentials --provider aws --key ${{ secrets.AWS_ACCESS_KEY_ID }} --secret ${{ secrets.AWS_SECRET_ACCESS_KEY }}    
    
     - name: serverless deploy
-      # uses: serverless/github-action@v2
       run: serverless deploy
-      # with:
-      #   args: deploy
 
     
         
